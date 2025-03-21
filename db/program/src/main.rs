@@ -8,23 +8,28 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
+use std::fs;
+
 use alloy_sol_types::SolType;
 use fibonacci_lib::{fibonacci, PublicValuesStruct};
+use num_bigint::BigUint;
+use paillier_rs::{encrypt::paillier_encrypt, keygen::paillier_keygen};
+use sp1_zkvm::io;
 
 pub fn main() {
-    // Read an input to the program.
-    //
-    // Behind the scenes, this compiles down to a custom system call which handles reading inputs
-    // from the prover.
-    let n = sp1_zkvm::io::read::<u32>();
+   
 
-    // Compute the n'th fibonacci number using a function from the workspace lib crate.
-    let (a, b) = fibonacci(n);
+    let op_code = io::read::<u32>();
+    let wallet_address = io::read::<String>();
+    let debit = io::read::<u32>();
+    let credit = io::read::<u32>();
 
-    // Encode the public values of the program.
-    let bytes = PublicValuesStruct::abi_encode(&PublicValuesStruct { n, a, b });
+    let (pubkey, privkey) = paillier_keygen(16);
 
-    // Commit to the public values of the program. The final proof will have a commitment to all the
-    // bytes that were committed to.
-    sp1_zkvm::io::commit_slice(&bytes);
+    let encrypted_debit = paillier_encrypt(&pubkey, &BigUint::from(debit));
+    let encrypted_credit = paillier_encrypt(&pubkey, &BigUint::from(credit));
+
+    io::commit_slice(&encrypted_debit.to_bytes_le());
+    io::commit_slice(&encrypted_credit.to_bytes_le());
+
 }

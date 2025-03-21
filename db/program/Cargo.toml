@@ -7,3 +7,7 @@ edition = "2021"
 alloy-sol-types = { workspace = true }
 sp1-zkvm = "4.0.0"
 fibonacci-lib = { path = "../lib" }
+rusqlite = { version = "0.28.0", features = ["functions"] }
+paillier_rs = { path = "../paillier_rs" }
+num-bigint = { version = "0.4", features = ["rand"] }
+num-traits = "0.2"

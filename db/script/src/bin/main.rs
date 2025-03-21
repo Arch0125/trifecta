@@ -13,80 +13,69 @@
 use alloy_sol_types::SolType;
 use clap::Parser;
 use fibonacci_lib::PublicValuesStruct;
-use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
+use sp1_sdk::{include_elf, utils, ProverClient, SP1ProofWithPublicValues, SP1Stdin};
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
-pub const FIBONACCI_ELF: &[u8] = include_elf!("fibonacci-program");
-
-/// The arguments for the command.
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    #[clap(long)]
-    execute: bool,
-
-    #[clap(long)]
-    prove: bool,
-
-    #[clap(long, default_value = "20")]
-    n: u32,
-}
+const ELF: &[u8] = include_bytes!("../../../program/sql/fibonacci-program");
 
 fn main() {
     // Setup the logger.
-    sp1_sdk::utils::setup_logger();
-    dotenv::dotenv().ok();
+    utils::setup_logger();
 
-    // Parse the command line arguments.
-    let args = Args::parse();
+    // Create an input stream and write '500' to it.
+    let opcode = 0u32;
+    let walletaddress = "0x1234567890abcdef";
+    let debit = 0u32;
+    let credit = 10u32;
 
-    if args.execute == args.prove {
-        eprintln!("Error: You must specify either --execute or --prove");
-        std::process::exit(1);
-    }
+    // The input stream that the program will read from using `sp1_zkvm::io::read`. Note that the
+    // types of the elements in the input stream must match the types being read in the program.
+    let mut stdin = SP1Stdin::new();
+    stdin.write(&opcode);
+    stdin.write(&walletaddress);
+    stdin.write(&debit);
+    stdin.write(&credit);
 
-    // Setup the prover client.
+    // Create a `ProverClient` method.
     let client = ProverClient::from_env();
 
-    // Setup the inputs.
-    let mut stdin = SP1Stdin::new();
-    stdin.write(&args.n);
+    // Execute the program using the `ProverClient.execute` method, without generating a proof.
+    let (_, report) = client.execute(ELF, &stdin).run().unwrap();
+    println!(
+        "executed program with {} cycles",
+        report.total_instruction_count()
+    );
 
-    println!("n: {}", args.n);
+    // Generate the proof for the given program and input.
+    let (pk, vk) = client.setup(ELF);
+    let mut proof = client.prove(&pk, &stdin).compressed().run().unwrap();
 
-    if args.execute {
-        // Execute the program
-        let (output, report) = client.execute(FIBONACCI_ELF, &stdin).run().unwrap();
-        println!("Program executed successfully.");
+    println!("generated proof");
 
-        // Read the output.
-        let decoded = PublicValuesStruct::abi_decode(output.as_slice(), true).unwrap();
-        let PublicValuesStruct { n, a, b } = decoded;
-        println!("n: {}", n);
-        println!("a: {}", a);
-        println!("b: {}", b);
+    // Read and verify the output.
+    //
+    // Note that this output is read from values committed to in the program using
+    // `sp1_zkvm::io::commit`.
+    let a = proof.public_values.read::<u32>();
+    let b = proof.public_values.read::<u32>();
 
-        let (expected_a, expected_b) = fibonacci_lib::fibonacci(n);
-        assert_eq!(a, expected_a);
-        assert_eq!(b, expected_b);
-        println!("Values are correct!");
+    println!("a: {}", a);
+    println!("b: {}", b);
 
-        // Record the number of cycles executed.
-        println!("Number of cycles: {}", report.total_instruction_count());
-    } else {
-        // Setup the program for proving.
-        let (pk, vk) = client.setup(FIBONACCI_ELF);
+    // Verify proof and public values
+    client.verify(&proof, &vk).expect("verification failed");
 
-        // Generate the proof
-        let proof = client
-            .prove(&pk, &stdin)
-            .run()
-            .expect("failed to generate proof");
+    // Test a round trip of proof serialization and deserialization.
+    proof
+        .save("proof-with-pis.bin")
+        .expect("saving proof failed");
+    let deserialized_proof =
+        SP1ProofWithPublicValues::load("proof-with-pis.bin").expect("loading proof failed");
 
-        println!("Successfully generated proof!");
+    // Verify the deserialized proof.
+    client
+        .verify(&deserialized_proof, &vk)
+        .expect("verification failed");
 
-        // Verify the proof.
-        client.verify(&proof, &vk).expect("failed to verify proof");
-        println!("Successfully verified proof!");
-    }
+    println!("successfully generated and verified proof for the program!")
 }

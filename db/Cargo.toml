@@ -3,6 +3,7 @@ members = [
     "lib",
     "program",
     "script",
+    "paillier_rs"
 ]
 resolver = "2"
 

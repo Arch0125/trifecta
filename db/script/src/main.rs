@@ -1,40 +1,35 @@
-//! An end-to-end example of using the SP1 SDK to generate a proof of a program that can be executed
-//! or have a core proof generated.
-//!
-//! You can run this script using the following command:
-//! ```shell
-//! RUST_LOG=info cargo run --release -- --execute
-//! ```
-//! or
-//! ```shell
-//! RUST_LOG=info cargo run --release -- --prove
-//! ```
-
-use alloy_sol_types::SolType;
-use clap::Parser;
-use fibonacci_lib::PublicValuesStruct;
 use sp1_sdk::{include_elf, utils, ProverClient, SP1ProofWithPublicValues, SP1Stdin};
+use rusqlite::{functions::FunctionFlags, params, Connection, Result};
+use num_bigint::BigUint;
 
 /// The ELF (executable and linkable format) file for the Succinct RISC-V zkVM.
-const ELF: &[u8] = include_bytes!("../../../program/sql/fibonacci-program");
+const ELF: &[u8] = include_bytes!("../../program/sql/decrypt");
 
 fn main() {
     // Setup the logger.
     utils::setup_logger();
 
+    let conn = Connection::open("example.db").unwrap();
+
+//     a: 2048255844951298233
+// b: 179846505611096650
+
     // Create an input stream and write '500' to it.
-    let opcode = 0u32;
-    let walletaddress = "0x1234567890abcdef";
-    let debit = 0u32;
-    let credit = 10u32;
+    let pt_1 = 2048255844951298233u64;
+    let pt_2 = 179846505611096650u64;
+
+    //res : 4129133346
+    
+    // let pt1_bg = BigUint::from(3604835356u32);
+    // let pt2_bg = BigUint::from(4129133346u32);
+    // let pt1_bytes = pt1_bg.to_bytes_be();
+    // let pt2_bytes = pt2_bg.to_bytes_be();
 
     // The input stream that the program will read from using `sp1_zkvm::io::read`. Note that the
     // types of the elements in the input stream must match the types being read in the program.
     let mut stdin = SP1Stdin::new();
-    stdin.write(&opcode);
-    stdin.write(&walletaddress);
-    stdin.write(&debit);
-    stdin.write(&credit);
+    stdin.write(&pt_1);
+    stdin.write(&pt_2);
 
     // Create a `ProverClient` method.
     let client = ProverClient::from_env();
@@ -56,8 +51,8 @@ fn main() {
     //
     // Note that this output is read from values committed to in the program using
     // `sp1_zkvm::io::commit`.
-    let a = proof.public_values.read::<u32>();
-    let b = proof.public_values.read::<u32>();
+    let a = proof.public_values.read::<u64>();
+    let b = proof.public_values.read::<u64>();
 
     println!("a: {}", a);
     println!("b: {}", b);

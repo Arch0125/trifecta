@@ -2,7 +2,7 @@ import zkeSDK from "@zk-email/sdk";
 import fs from "fs/promises";
 
 // Copy slug from UI homepage
-const blueprintSlug = "DimiDumo/SuccinctZKResidencyInvite@v3";
+const blueprintSlug = "Arch0125/Hdfcupi@v1";
 
 async function main() {
   const sdk = zkeSDK();
@@ -14,7 +14,7 @@ async function main() {
   const prover = blueprint.createProver();
 
   // Get eml
-  const eml = (await fs.readFile("./residency.eml")).toString();
+  const eml = (await fs.readFile("./hdfc.eml")).toString();
 
   // Generate and wait until proof is generated, can take up to a few minutes
   const proof = await prover.generateProof(eml);

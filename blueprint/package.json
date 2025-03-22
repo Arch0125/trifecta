@@ -9,6 +9,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@zk-email/sdk": "^0.0.137"
+    "@zk-email/sdk": "^0.0.133"
   }
 }

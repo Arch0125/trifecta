@@ -42,14 +42,14 @@ pub fn insert_data(conn: &Connection, a: u64, b: u64, wallet: &str) {
     }
 
     println!("==============================");
-    let ELF_ADD: &[u8] = include_bytes!("../../program/sql/add");
+    const ELF_ADD: &[u8] = include_bytes!("../../program/sql/scaladd");
     let mut stdin1 = SP1Stdin::new();
     if b == 0 {
+        stdin1.write(&net_res);
         stdin1.write(&ct1);
-        stdin1.write(&net_res);
     } else {
-        stdin1.write(&ct2);
         stdin1.write(&net_res);
+        stdin1.write(&ct2);
     }
     let(_, report1) = client.execute(ELF_ADD, &stdin1).run().unwrap();
     print!(
@@ -66,4 +66,69 @@ pub fn insert_data(conn: &Connection, a: u64, b: u64, wallet: &str) {
         "INSERT INTO wallet_txs (wallet, debit, credit, net) VALUES (?1, ?2, ?3, ?4)",
         params![wallet, ct1, ct2, result],
     ).expect("insert failed");
+}
+
+pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) {
+    const ELF: &[u8] = include_bytes!("../../program/sql/compare");
+    utils::setup_logger();
+
+    //select latest net entry
+    let mut stmt = conn.prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1").unwrap();
+    let mut rows = stmt.query(params![]).unwrap();
+    let mut net_res = 0u64;
+    while let Some(row) = rows.next().unwrap() {
+        net_res = row.get(0).unwrap();
+    }
+
+
+    let mut stdin = SP1Stdin::new();
+    stdin.write(&amount);
+    stdin.write(&net_res);
+
+    let client = ProverClient::from_env();
+    let (_, report) = client.execute(ELF, &stdin).run().unwrap();
+    println!(
+        "executed program with {} cycles",
+        report.total_instruction_count()
+    );
+
+    let (pk, vk) = client.setup(ELF);
+    let mut proof = client.prove(&pk, &stdin).compressed().run().unwrap();
+
+    let result = proof.public_values.read::<bool>();
+    
+    client.verify(&proof, &vk).expect("verification failed");
+
+    println!("result: {}", result);
+    
+}
+
+pub fn decrypt(wallet: &str, amount: u64, conn: &Connection) {
+    const ELF: &[u8] = include_bytes!("../../program/sql/decrypt");
+    utils::setup_logger();
+
+    //select latest net entry
+    let mut stmt = conn.prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1").unwrap();
+    let mut rows = stmt.query(params![]).unwrap();
+    let mut net_res = 0u64;
+    while let Some(row) = rows.next().unwrap() {
+        net_res = row.get(0).unwrap();
+    }
+
+    let mut stdin = SP1Stdin::new();
+    stdin.write(&net_res);
+    stdin.write(&net_res);
+
+    let client = ProverClient::from_env();
+    let (_, report) = client.execute(ELF, &stdin).run().unwrap();
+    println!(
+        "executed program with {} cycles",
+        report.total_instruction_count()
+    );
+
+    let (pk, vk) = client.setup(ELF);
+    let mut proof = client.prove(&pk, &stdin).compressed().run().unwrap();
+
+    let result = proof.public_values.read::<u64>();
+    println!("result: {}", result);
 }

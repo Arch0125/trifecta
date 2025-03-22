@@ -1,4 +1,4 @@
-use script::dbhandler::insert_data;
+use script::dbhandler::{decrypt, insert_data, withdraw};
 use sp1_sdk::{include_elf, utils, ProverClient, SP1ProofWithPublicValues, SP1Stdin};
 use rusqlite::{functions::FunctionFlags, params, Connection, Result};
 use num_bigint::BigUint;
@@ -28,7 +28,13 @@ fn main() {
     let wallet = "Alice";
 
     // Insert the data into the database.
-    insert_data(&conn, debit, credit, wallet);
+    // insert_data(&conn, debit, credit, wallet);
+    // // withdraw(wallet, credit, &conn);
+    // // insert_data(&conn, debit, credit, wallet);
+    // withdraw(wallet, 50u64, &conn);
+    withdraw(wallet, 150u64, &conn);
+
+    // decrypt(wallet,credit, &conn);
 
     // Setup the logger.
 //     utils::setup_logger();

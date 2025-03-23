@@ -55,7 +55,7 @@ async fn decrypt_handler(
 ) -> impl Responder {
     let conn = data.conn.lock().unwrap();
     let result = decrypt(&req.wallet, req.amount, &conn);
-    HttpResponse::Ok().body(format!("Decrypt operation successful: {:?}", result))
+    HttpResponse::Ok().body(format!("{:?}", result))
 }
 
 #[actix_web::main]

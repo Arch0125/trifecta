@@ -105,7 +105,7 @@ pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) -> bool {
     
 }
 
-pub fn decrypt(wallet: &str, amount: u64, conn: &Connection) {
+pub fn decrypt(wallet: &str, amount: u64, conn: &Connection) -> u64 {
     const ELF: &[u8] = include_bytes!("../../program/sql/decrypt");
     utils::setup_logger();
 
@@ -133,4 +133,6 @@ pub fn decrypt(wallet: &str, amount: u64, conn: &Connection) {
 
     let result = proof.public_values.read::<u64>();
     println!("result: {}", result);
+
+    return result;
 }

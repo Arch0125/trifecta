@@ -8,3 +8,5 @@ sp1-sdk = "4.0.0"
 rusqlite = { version = "0.28.0", features = ["functions"] }
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
+serde = "1.0.219"
+actix-web = "4.10.2"

@@ -68,7 +68,7 @@ pub fn insert_data(conn: &Connection, a: u64, b: u64, wallet: &str) {
     ).expect("insert failed");
 }
 
-pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) {
+pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) -> bool {
     const ELF: &[u8] = include_bytes!("../../program/sql/compare");
     utils::setup_logger();
 
@@ -100,6 +100,8 @@ pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) {
     client.verify(&proof, &vk).expect("verification failed");
 
     println!("result: {}", result);
+
+    return result;
     
 }
 

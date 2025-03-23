@@ -3,6 +3,8 @@ import { createRequire } from 'module';
 import Imap from 'node-imap';
 const require = createRequire(import.meta.url);
 import { inspect } from 'util';
+import * as http from 'http';
+import { generateEmailProof } from '.';
 
 const imap = new Imap({
     user: process.env.GMAIL_USER,         // replace with your Gmail address
@@ -68,10 +70,48 @@ function fetchNewEmails() {
                 });
             });
 
-            msg.once('end', () => {
+            msg.once('end', async () => {
                 console.log(`\nEML content for new message UID ${uid}:\n`);
                 if (fullEmlData.includes(REQUIRED_SUBJECT)) {
                     console.log('Email contains required subject and is from hdfcbank.net');
+
+                    const txAmountMatch = await generateEmailProof(fullEmlData);
+                    if (txAmountMatch) {
+                        const txAmount = txAmountMatch[0];
+                        console.log('Amount:', txAmount);
+                        const postData = JSON.stringify({
+                            wallet: process.env.GMAIL_USER,
+                            amount: Number(txAmount),
+                        });
+
+                        const options = {
+                            hostname: '127.0.0.1',
+                            port: 8080,
+                            path: '/credit',
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Content-Length': Buffer.byteLength(postData).toString(),
+                            },
+                        };
+
+                        const req = http.request(options, (res) => {
+                            let data = '';
+                            res.on('data', (chunk) => {
+                                data += chunk;
+                            });
+                            res.on('end', () => {
+                                console.log('Response from credit service:', data);
+                            });
+                        });
+
+                        req.on('error', (error) => {
+                            console.error('Error making HTTP request:', error);
+                        });
+
+                        req.write(postData);
+                        req.end();
+                    }
                 }
                 console.log('-----------------------------------------------------');
 

@@ -34,6 +34,21 @@ The end to end flow looks like
 - inside db/crates/script `cargo run --release`
 - For frontend `npm run dev`
 
+## To test the prover separately 
+- run `cd db/crates/script` and then `cargo run --release`
+- make curl requests like 
+```
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"wallet": "trifecta22937@gmail.com", "amount": 1}' \
+     http://127.0.0.1:8080/credit
+```
+
+```
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"wallet": "trifecta22937@gmail.com", "amount": 1}' \
+     http://127.0.0.1:8080/decrypt
+```
+
 ### ENV used 
 ```
 GMAIL_USER= # email address of the relayer

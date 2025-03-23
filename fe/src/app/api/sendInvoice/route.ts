@@ -24,7 +24,7 @@ export async function POST(request: Request) {
         },
       });
 
-      const textBody = `Please find your beautified invoice attached. \n - To pay using crypto reply to this mail typing Confirm and cc to relayer@emailwallet.org \n - To pay using UPI send the amount to the UPI ID: 1234567890@upi \n Regards, \n zkPay`;
+      const textBody = `Please find your beautified invoice attached. \n - To pay using crypto reply to this mail typing Confirm and cc to relayer@emailwallet.org \n - To pay using UPI send the amount to the UPI ID: dasarchisman25@oksbi \n Regards, \n zkPay`;
 
     // Send the email with the image attachment
     await transporter.sendMail({

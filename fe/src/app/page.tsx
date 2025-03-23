@@ -2,12 +2,18 @@
 
 import { useState, useRef } from "react";
 import html2canvas from "html2canvas";
+import { ethers } from "ethers";
 
 export default function Home() {
   const [receiverName, setReceiverName] = useState("");
   const [receiverMail, setReceiverMail] = useState("");
   const [items, setItems] = useState([{ name: "", amount: "" }]);
   const invoiceRef = useRef<HTMLDivElement>(null);
+
+  // New states for account info
+  const [showBalance, setShowBalance] = useState(false);
+  const [balance, setBalance] = useState(1000);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
   const handleAddItem = () =>
     setItems((prev) => [...prev, { name: "", amount: "" }]);
@@ -41,7 +47,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toEmail: receiverMail,
-          subject: `Send ${total} TEST to dasarchisman25@gmail.com`,
+          subject: `Send ${total} TEST to relayer@emailwallet.org`,
           image: dataUrl,
         }),
       });
@@ -52,6 +58,65 @@ export default function Home() {
       console.error(err);
       alert("Error sending invoice");
     }
+  };
+
+  const handleDecrypt = async () => {
+    await fetch("http://127.0.0.1:8080/decrypt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wallet: "trifecta22937@gmail.com",
+        amount: 1,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Decrypted balance:", data);
+        setBalance(data);
+      })
+      .catch((error) => console.error("Decryption error:", error));
+
+      setShowBalance((prev) => !prev);
+  };
+
+  const handleWithdraw = async() => {
+    alert(`Attempting to withdraw $${withdrawAmount}`);
+    await fetch("http://127.0.0.1:8080/withdraw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        wallet: "trifecta22937@gmail.com",
+        amount: 1,
+      }),
+    })
+      .then((response) => response.text())
+      .then(async (data:string) => {
+        if(data.includes("true")){
+          const provider = new ethers.JsonRpcProvider("https://base-sepolia.g.alchemy.com/v2/0fxbpb4OCXkkyHhFNPBRelJsFg7XdhML");
+    console.log(process.env.NEXT_PUBLIC_PVT_KEY)
+          const signer = new ethers.Wallet(process.env.NEXT_PUBLIC_PVT_KEY as string, provider);
+          const usdcContract = new ethers.Contract("0x036CbD53842c5426634e7929541eC2318f3dCF7e", [
+            {
+              constant: false,
+              inputs: [
+                { name: '_to', type: 'address' },
+                { name: '_value', type: 'uint256' },
+              ],
+              name: 'transfer',
+              outputs: [{ name: '', type: 'bool' }],
+              type: 'function',
+            },
+          ], signer);
+
+          const tx = await usdcContract.transfer("0x187E7D2256c55b68F97C5E35b6A9aC6e0F8Bc669", ethers.parseUnits(withdrawAmount, 6));
+          console.log("Transaction hash:", tx.hash);
+          alert(`Withdrawal of $${withdrawAmount} successful!`);
+        }
+      })
+      .catch((error) => console.error("Decryption error:", error));
+
+
+    
   };
 
   return (
@@ -79,7 +144,6 @@ export default function Home() {
       >
         {/* Left: Placeholder PayPal Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          {/* Simple SVG as a placeholder logo */}
           <svg
             width="36"
             height="36"
@@ -100,7 +164,6 @@ export default function Home() {
             zkPay
           </span>
         </div>
-
         {/* Right: Gear Icon */}
         <button
           style={{
@@ -126,6 +189,82 @@ export default function Home() {
           </svg>
         </button>
       </header>
+
+      <div
+        style={{
+          padding: "1.5rem",
+          borderBottom: "1px solid #e5e7eb",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "1rem",
+            fontWeight: 600,
+            color: "#374151",
+            marginBottom: "0.5rem",
+          }}
+        >
+          Account Info
+        </h2>
+        <p style={{ fontSize: "0.875rem", color: "#6B7280", margin: 0, marginBottom: "1rem" }}>
+          trifecta22937@gmail.com
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <span style={{ fontSize: "1rem", color: "#374151" }}>
+            Balance: {showBalance ? `$${balance.toFixed(2)}` : "******"}
+          </span>
+          <button
+            onClick={handleDecrypt}
+            style={{
+              padding: "0.5rem 1rem",
+              fontSize: "0.875rem",
+              border: "1px solid #D1D5DB",
+              borderRadius: "0.375rem",
+              backgroundColor: "#fff",
+              cursor: "pointer",
+              color: "#374151",
+            }}
+          >
+            {showBalance ? "Hide" : "Decrypt"}
+          </button>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            marginTop: "1rem",
+          }}
+        >
+          <input
+            type="number"
+            value={withdrawAmount}
+            onChange={(e) => setWithdrawAmount(e.target.value)}
+            placeholder="Amount to withdraw"
+            style={{
+              width: "10rem",
+              padding: "0.5rem 0.75rem",
+              border: "1px solid #D1D5DB",
+              borderRadius: "0.375rem",
+              fontSize: "0.875rem",
+            }}
+          />
+          <button
+            onClick={handleWithdraw}
+            style={{
+              padding: "0.5rem 1rem",
+              fontSize: "0.875rem",
+              border: "none",
+              borderRadius: "0.375rem",
+              backgroundColor: "#2563EB",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Withdraw
+          </button>
+        </div>
+      </div>
 
       {/* Invoice Header */}
       <div
@@ -202,18 +341,11 @@ export default function Home() {
             gap: "1.5rem",
           }}
         >
-          {/* 
-            For narrower screens, you can adapt or 
-            use media queries to set gridColumn = 'span 12'.
-            For larger screens, set 'span 6'.
-          */}
           <div
             style={{
               border: "1px solid #e5e7eb",
               borderRadius: "0.375rem",
               padding: "1rem",
-              maxWidth: "100%",
-              marginBottom: 0,
             }}
           >
             <h2
@@ -284,7 +416,6 @@ export default function Home() {
               border: "1px solid #e5e7eb",
               borderRadius: "0.375rem",
               padding: "1rem",
-              maxWidth: "100%",
             }}
           >
             <h2
@@ -360,7 +491,6 @@ export default function Home() {
                   </button>
                 </div>
               ))}
-
               <button
                 onClick={handleAddItem}
                 style={{
@@ -424,7 +554,6 @@ export default function Home() {
               Mobile preview
             </button>
           </div>
-
           {/* Preview Card */}
           <div
             ref={invoiceRef}
@@ -433,7 +562,6 @@ export default function Home() {
               border: "1px solid #e5e7eb",
               borderRadius: "0.375rem",
               padding: "1.5rem",
-              maxWidth: "100%",
             }}
           >
             <div style={{ marginBottom: "1rem" }}>
@@ -457,7 +585,6 @@ export default function Home() {
                 1001 Roads St, San Jose, CA
               </p>
             </div>
-
             <div style={{ marginBottom: "1rem" }}>
               <p
                 style={{
@@ -479,7 +606,6 @@ export default function Home() {
                 {receiverMail || "john@mail.com"}
               </p>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {items.map((item, idx) => (
                 <div
@@ -500,8 +626,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-
-            {/* Total */}
             <div
               style={{
                 display: "flex",
@@ -519,6 +643,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Account Info Section */}
+      
     </div>
   );
 }

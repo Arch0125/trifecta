@@ -1,11 +1,10 @@
-use rusqlite::{functions::FunctionFlags, params, Connection, Result};
 use num_bigint::BigUint;
+use rusqlite::{functions::FunctionFlags, params, Connection, Result};
 use sp1_sdk::{utils, ProverClient, SP1Stdin};
 
 pub fn insert_data(conn: &Connection, a: u64, b: u64, wallet: &str) {
-
     const ELF: &[u8] = include_bytes!("../../program/sql/encrypt");
-    
+
     utils::setup_logger();
 
     let mut stdin = SP1Stdin::new();
@@ -34,38 +33,49 @@ pub fn insert_data(conn: &Connection, a: u64, b: u64, wallet: &str) {
     println!("ct2: {}", ct2);
 
     //select the last net entry
-    let mut stmt = conn.prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1")
+        .unwrap();
     let mut rows = stmt.query(params![]).unwrap();
     let mut net_res = 0u64;
     while let Some(row) = rows.next().unwrap() {
         net_res = row.get(0).unwrap();
     }
 
-    println!("==============================");
-    const ELF_ADD: &[u8] = include_bytes!("../../program/sql/scaladd");
-    let mut stdin1 = SP1Stdin::new();
-    if b == 0 {
-        stdin1.write(&net_res);
-        stdin1.write(&ct1);
-    } else {
-        stdin1.write(&net_res);
-        stdin1.write(&ct2);
-    }
-    let(_, report1) = client.execute(ELF_ADD, &stdin1).run().unwrap();
-    print!(
-        "executed program with {} cycles",
-        report1.total_instruction_count()
-    );
-    let(pk1, vk1) = client.setup(ELF_ADD);
-    let mut proof1 = client.prove(&pk1, &stdin1).compressed().run().unwrap();
-    let result = proof1.public_values.read::<u64>();
-    println!("result: {}", result);
-    client.verify(&proof1, &vk1).expect("verification failed");
+    if net_res != 0 {
+        println!("==============================");
+        const ELF_ADD: &[u8] = include_bytes!("../../program/sql/add");
+        let mut stdin1 = SP1Stdin::new();
+        if b == 0 {
+            stdin1.write(&net_res);
+            stdin1.write(&ct1);
+        } else {
+            stdin1.write(&net_res);
+            stdin1.write(&ct2);
+        }
+        let (_, report1) = client.execute(ELF_ADD, &stdin1).run().unwrap();
+        print!(
+            "executed program with {} cycles",
+            report1.total_instruction_count()
+        );
+        let (pk1, vk1) = client.setup(ELF_ADD);
+        let mut proof1 = client.prove(&pk1, &stdin1).compressed().run().unwrap();
+        let result = proof1.public_values.read::<u64>();
+        println!("result: {}", result);
+        client.verify(&proof1, &vk1).expect("verification failed");
 
-    conn.execute(
-        "INSERT INTO wallet_txs (wallet, debit, credit, net) VALUES (?1, ?2, ?3, ?4)",
-        params![wallet, ct1, ct2, result],
-    ).expect("insert failed");
+        conn.execute(
+            "INSERT INTO wallet_txs (wallet, debit, credit, net) VALUES (?1, ?2, ?3, ?4)",
+            params![wallet, ct1, ct2, result],
+        )
+        .expect("insert failed");
+    } else {
+        conn.execute(
+            "INSERT INTO wallet_txs (wallet, debit, credit, net) VALUES (?1, ?2, ?3, ?4)",
+            params![wallet, ct1, ct2, ct2],
+        )
+        .expect("insert failed");
+    }
 }
 
 pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) -> bool {
@@ -73,13 +83,14 @@ pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) -> bool {
     utils::setup_logger();
 
     //select latest net entry
-    let mut stmt = conn.prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1")
+        .unwrap();
     let mut rows = stmt.query(params![]).unwrap();
     let mut net_res = 0u64;
     while let Some(row) = rows.next().unwrap() {
         net_res = row.get(0).unwrap();
     }
-
 
     let mut stdin = SP1Stdin::new();
     stdin.write(&amount);
@@ -96,13 +107,12 @@ pub fn withdraw(wallet: &str, amount: u64, conn: &Connection) -> bool {
     let mut proof = client.prove(&pk, &stdin).compressed().run().unwrap();
 
     let result = proof.public_values.read::<bool>();
-    
+
     client.verify(&proof, &vk).expect("verification failed");
 
     println!("result: {}", result);
 
     return result;
-    
 }
 
 pub fn decrypt(wallet: &str, amount: u64, conn: &Connection) -> u64 {
@@ -110,7 +120,9 @@ pub fn decrypt(wallet: &str, amount: u64, conn: &Connection) -> u64 {
     utils::setup_logger();
 
     //select latest net entry
-    let mut stmt = conn.prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT net FROM wallet_txs ORDER BY id DESC LIMIT 1")
+        .unwrap();
     let mut rows = stmt.query(params![]).unwrap();
     let mut net_res = 0u64;
     while let Some(row) = rows.next().unwrap() {

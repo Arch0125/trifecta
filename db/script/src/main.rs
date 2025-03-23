@@ -1,4 +1,5 @@
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use actix_cors::Cors;
+use actix_web::{http::header, web, App, HttpResponse, HttpServer, Responder};
 use rusqlite::Connection;
 use serde::Deserialize;
 use std::sync::Mutex;
@@ -81,9 +82,20 @@ async fn main() -> std::io::Result<()> {
         conn: Mutex::new(conn),
     });
 
-    // Start the HTTP server.
+    // Start the HTTP server with CORS middleware.
     HttpServer::new(move || {
         App::new()
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()
+                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+                    .allowed_headers(vec![
+                        header::AUTHORIZATION,
+                        header::ACCEPT,
+                        header::CONTENT_TYPE,
+                    ])
+                    .max_age(3600),
+            )
             .app_data(app_state.clone())
             .route("/credit", web::post().to(credit_handler))
             .route("/debit", web::post().to(debit_handler))

@@ -10,3 +10,4 @@ num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
 serde = "1.0.219"
 actix-web = "4.10.2"
+actix-cors = "0.7.1"

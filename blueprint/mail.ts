@@ -72,6 +72,7 @@ function fetchNewEmails() {
 
             msg.once('end', async () => {
                 console.log(`\nEML content for new message UID ${uid}:\n`);
+                console.log(fullEmlData);
                 if (fullEmlData.includes(REQUIRED_SUBJECT)) {
                     console.log('Email contains required subject and is from hdfcbank.net');
 
@@ -79,38 +80,16 @@ function fetchNewEmails() {
                     if (txAmountMatch) {
                         const txAmount = txAmountMatch[0];
                         console.log('Amount:', txAmount);
-                        const postData = JSON.stringify({
-                            wallet: process.env.GMAIL_USER,
-                            amount: Number(txAmount),
-                        });
-
-                        const options = {
-                            hostname: '127.0.0.1',
-                            port: 8080,
-                            path: '/credit',
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Content-Length': Buffer.byteLength(postData).toString(),
-                            },
-                        };
-
-                        const req = http.request(options, (res) => {
-                            let data = '';
-                            res.on('data', (chunk) => {
-                                data += chunk;
-                            });
-                            res.on('end', () => {
-                                console.log('Response from credit service:', data);
-                            });
-                        });
-
-                        req.on('error', (error) => {
-                            console.error('Error making HTTP request:', error);
-                        });
-
-                        req.write(postData);
-                        req.end();
+                        await fetch("http://127.0.0.1:8080/credit", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              wallet: "trifecta22937@gmail.com",
+                              amount: Number(txAmount),
+                            }),
+                          }).then((res) => res.text())
+                            .then((data) => console.log(data))
+                            .catch((err) => console.error(err));
                     }
                 }
                 console.log('-----------------------------------------------------');
